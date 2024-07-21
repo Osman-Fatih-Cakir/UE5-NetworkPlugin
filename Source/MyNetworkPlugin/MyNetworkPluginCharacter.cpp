@@ -10,14 +10,18 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+#include "DebugHelper.h"
 #include "Kismet/GameplayStatics.h"
+#include "OnlineSubsystem.h"
+#include "OnlineSessionSettings.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
 //////////////////////////////////////////////////////////////////////////
 // AMyNetworkPluginCharacter
 
-AMyNetworkPluginCharacter::AMyNetworkPluginCharacter()
+AMyNetworkPluginCharacter::AMyNetworkPluginCharacter() :
+  CreateSessionCompleteDelegate(FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnCreateSessionComplete))
 {
   // Set size for collision capsule
   GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -53,6 +57,14 @@ AMyNetworkPluginCharacter::AMyNetworkPluginCharacter()
 
   // Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
   // are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+
+  IOnlineSubsystem* onlineSubsystem = IOnlineSubsystem::Get();
+  if (onlineSubsystem)
+  {
+    OnlineSessionInterface = onlineSubsystem->GetSessionInterface();
+
+    Debug::Print("Found subsytem " + onlineSubsystem->GetSubsystemName().ToString(), FColor::Green, 15.0f);
+  }
 }
 
 void AMyNetworkPluginCharacter::BeginPlay()
@@ -61,6 +73,7 @@ void AMyNetworkPluginCharacter::BeginPlay()
   Super::BeginPlay();
 }
 
+#pragma region CharacterThings
 //////////////////////////////////////////////////////////////////////////
 // Input
 
@@ -129,26 +142,43 @@ void AMyNetworkPluginCharacter::Look(const FInputActionValue& Value)
     AddControllerPitchInput(LookAxisVector.Y);
   }
 }
+#pragma endregion
 
-void AMyNetworkPluginCharacter::OpenLobby()
+void AMyNetworkPluginCharacter::CreateGameSession()
 {
-  UWorld* world = GetWorld();
-  if (world)
+  if (!OnlineSessionInterface.IsValid()) return;
+
+  // Delete the session if exists already
+  auto existingSession = OnlineSessionInterface->GetNamedSession(NAME_GameSession);
+  if (existingSession != nullptr)
   {
-    world->ServerTravel("/Game/ThirdPerson/Maps/Lobby?listen");
+    OnlineSessionInterface->DestroySession(NAME_GameSession);
+
+    Debug::Print("Session named: NAME_GameSession is destroyed.", FColor::Blue, 15.0f);
   }
+
+  OnlineSessionInterface->AddOnCreateSessionCompleteDelegate_Handle(CreateSessionCompleteDelegate);
+
+  // Create a new session
+  TSharedPtr<FOnlineSessionSettings> sessionSettings = MakeShareable(new FOnlineSessionSettings());
+  sessionSettings->bIsLANMatch = false;
+  sessionSettings->NumPublicConnections = 4;
+  sessionSettings->bAllowJoinInProgress = true;
+  sessionSettings->bAllowJoinViaPresence = true;
+  sessionSettings->bUsesPresence = true;
+  sessionSettings->bShouldAdvertise = true;
+  const ULocalPlayer* localPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+  OnlineSessionInterface->CreateSession(*localPlayer->GetPreferredUniqueNetId(), NAME_GameSession, *sessionSettings);
 }
 
-void AMyNetworkPluginCharacter::CallOpenLevel(const FString& Adress)
+void AMyNetworkPluginCharacter::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)
 {
-  UGameplayStatics::OpenLevel(this, *Adress);
-}
-
-void AMyNetworkPluginCharacter::CallClientTravel(const FString& Adress)
-{
-  APlayerController* playerController = GetGameInstance()->GetFirstLocalPlayerController();
-  if (playerController)
+  if (bWasSuccessful)
   {
-    playerController->ClientTravel(Adress, ETravelType::TRAVEL_Absolute);
+    Debug::Print("Created session: " + SessionName.ToString(), FColor::Green, 15.0f);
+  }
+  else
+  {
+    Debug::Print("FAILED TO CREATE SESSION!!", FColor::Red, 15.0f);
   }
 }

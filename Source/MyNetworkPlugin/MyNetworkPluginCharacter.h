@@ -5,12 +5,14 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
+#include "Interfaces/OnlineSessionInterface.h"
 #include "MyNetworkPluginCharacter.generated.h"
 
 class USpringArmComponent;
 class UCameraComponent;
 class UInputMappingContext;
 class UInputAction;
+class IOnlineSession;
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
@@ -27,15 +29,6 @@ public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
-
-	UFUNCTION(BlueprintCallable)
-	void OpenLobby();
-
-	UFUNCTION(BlueprintCallable)
-	void CallOpenLevel(const FString& Adress);
-
-	UFUNCTION(BlueprintCallable)
-	void CallClientTravel(const FString& Adress);
 
 protected:
 
@@ -75,5 +68,22 @@ protected:
 	/** Look Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* LookAction;
-};
 
+	// ************* //
+	// Online system //
+	// ************* //
+
+protected:
+	UFUNCTION(BlueprintCallable)
+	void CreateGameSession();
+
+	UFUNCTION()
+	void OnCreateSessionComplete(FName SessionName, bool bWasSuccessful);
+
+public:
+	// Online subsystem
+	IOnlineSessionPtr OnlineSessionInterface = nullptr;
+
+private:
+	FOnCreateSessionCompleteDelegate CreateSessionCompleteDelegate;
+};
