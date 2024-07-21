@@ -77,8 +77,13 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	void CreateGameSession();
 
+	UFUNCTION(BlueprintCallable)
+	void JoinGameSession();
+
 	UFUNCTION()
 	void OnCreateSessionComplete(FName SessionName, bool bWasSuccessful);
+	UFUNCTION()
+	void OnFindSessionsComplete(bool bWasSuccessful);
 
 public:
 	// Online subsystem
@@ -86,4 +91,7 @@ public:
 
 private:
 	FOnCreateSessionCompleteDelegate CreateSessionCompleteDelegate;
+	FOnFindSessionsCompleteDelegate FindSessionsCompleteDelegate;
+
+	TSharedPtr<FOnlineSessionSearch> SessionSearch = nullptr;
 };

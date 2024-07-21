@@ -14,6 +14,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSessionSettings.h"
+#include "Online/OnlineSessionNames.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -21,7 +22,8 @@ DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 // AMyNetworkPluginCharacter
 
 AMyNetworkPluginCharacter::AMyNetworkPluginCharacter() :
-  CreateSessionCompleteDelegate(FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnCreateSessionComplete))
+  CreateSessionCompleteDelegate(FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnCreateSessionComplete)),
+  FindSessionsCompleteDelegate(FOnFindSessionsCompleteDelegate::CreateUObject(this, &ThisClass::OnFindSessionsComplete))
 {
   // Set size for collision capsule
   GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -167,8 +169,25 @@ void AMyNetworkPluginCharacter::CreateGameSession()
   sessionSettings->bAllowJoinViaPresence = true;
   sessionSettings->bUsesPresence = true;
   sessionSettings->bShouldAdvertise = true;
+  sessionSettings->bUseLobbiesIfAvailable = true;
   const ULocalPlayer* localPlayer = GetWorld()->GetFirstLocalPlayerFromController();
   OnlineSessionInterface->CreateSession(*localPlayer->GetPreferredUniqueNetId(), NAME_GameSession, *sessionSettings);
+}
+
+void AMyNetworkPluginCharacter::JoinGameSession()
+{
+  // Find game sessions
+  if (!OnlineSessionInterface.IsValid()) return;
+
+  OnlineSessionInterface->AddOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegate);
+
+  SessionSearch = MakeShareable(new FOnlineSessionSearch());
+  SessionSearch->MaxSearchResults = 10000;
+  SessionSearch->bIsLanQuery = false;
+  SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
+
+  const ULocalPlayer* localPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+  OnlineSessionInterface->FindSessions(*localPlayer->GetPreferredUniqueNetId(), SessionSearch.ToSharedRef());
 }
 
 void AMyNetworkPluginCharacter::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)
@@ -180,5 +199,15 @@ void AMyNetworkPluginCharacter::OnCreateSessionComplete(FName SessionName, bool 
   else
   {
     Debug::Print("FAILED TO CREATE SESSION!!", FColor::Red, 15.0f);
+  }
+}
+
+void AMyNetworkPluginCharacter::OnFindSessionsComplete(bool bWasSuccessful)
+{
+  for (auto result : SessionSearch->SearchResults)
+  {
+    FString id = result.GetSessionIdStr();
+    FString user = result.Session.OwningUserName;
+    Debug::Print("ID: " + id + ", User: " + user, FColor::Cyan, 15.0f);
   }
 }
