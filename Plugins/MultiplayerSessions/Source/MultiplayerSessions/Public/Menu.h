@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Interfaces/OnlineSessionInterface.h"
 #include "Menu.generated.h"
 
 class UButton;
@@ -28,6 +29,12 @@ protected:
   // Callbacks for the delegetes on MultiplayerSessionsSubsystem
   UFUNCTION()
   void OnCreateSession(bool bWasSuccessful);
+  void OnFindSessions(const TArray<FOnlineSessionSearchResult>& SessionResults, bool bWasSuccessful);
+  void OnJoinSession(EOnJoinSessionCompleteResult::Type Result);
+  UFUNCTION()
+  void OnDestroySession(bool bWasSuccessful);
+  UFUNCTION()
+  void OnStartSession(bool bWasSuccessful);
 
 private:
   UFUNCTION()

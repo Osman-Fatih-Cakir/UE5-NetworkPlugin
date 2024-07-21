@@ -8,51 +8,60 @@
 #include "MultiplayerSessionsSubsystem.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMultiplayerOnCreateSessionComplete, bool, bWasSuccessful);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FMultiplayerOnFindSessionsComplete, const TArray<FOnlineSessionSearchResult>& SessionResults, bool bWasSuccessful);
+DECLARE_MULTICAST_DELEGATE_OneParam(FMultiplayerOnJoinSessionComplete, EOnJoinSessionCompleteResult::Type Result);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMultiplayerOnDestroySessionComplete, bool, bWasSuccessful);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMultiplayerOnStartSessionComplete, bool, bWasSuccessful);
 
 /**
- * 
+ *
  */
 UCLASS()
 class MULTIPLAYERSESSIONS_API UMultiplayerSessionsSubsystem : public UGameInstanceSubsystem
 {
-	GENERATED_BODY()
-	
-public:
-	UMultiplayerSessionsSubsystem();
+  GENERATED_BODY()
 
-	void CreateSession(int32 numPublicConnections, FString matchType);
-	void FindSessions(int32 maxSearchResults);
-	void JoinSession(const FOnlineSessionSearchResult& sessionResult);
-	void DestroySession();
-	void StartSession();
+public:
+  UMultiplayerSessionsSubsystem();
+
+  void CreateSession(int32 numPublicConnections, FString matchType);
+  void FindSessions(int32 maxSearchResults);
+  void JoinSession(const FOnlineSessionSearchResult& sessionResult);
+  void DestroySession();
+  void StartSession();
 
 protected:
-	void OnCreateSessionComplete(FName sessionName, bool bWasSuccessful);
-	void OnFindSessionsComplete(bool bWasSuccessful);
-	void OnJoinSessionComplete(FName sessionName, EOnJoinSessionCompleteResult::Type result);
-	void OnDestroySessionComplete(FName sessionName, bool bWasSuccessful);
-	void OnStartSessionComplete(FName sessionName, bool bWasSuccessful);
+  void OnCreateSessionComplete(FName sessionName, bool bWasSuccessful);
+  void OnFindSessionsComplete(bool bWasSuccessful);
+  void OnJoinSessionComplete(FName sessionName, EOnJoinSessionCompleteResult::Type result);
+  void OnDestroySessionComplete(FName sessionName, bool bWasSuccessful);
+  void OnStartSessionComplete(FName sessionName, bool bWasSuccessful);
 
 public:
-	// Delegates for callbacks for session creation info
-	FMultiplayerOnCreateSessionComplete MultiplayerOnCreateSessionComplete;
+  // Delegates for callbacks for session creation info
+  FMultiplayerOnCreateSessionComplete MultiplayerOnCreateSessionComplete;
+  FMultiplayerOnFindSessionsComplete MultiplayerOnFindSessionsComplete;
+  FMultiplayerOnJoinSessionComplete MultiplayerOnJoinSessionComplete;
+  FMultiplayerOnDestroySessionComplete MultiplayerOnDestroySessionComplete;
+  FMultiplayerOnStartSessionComplete MultiplayerOnStartSessionComplete;
+
 
 private:
-	IOnlineSessionPtr SessionInterface = nullptr;
-	TSharedPtr<FOnlineSessionSettings> LastSessionSettings = nullptr;
+  IOnlineSessionPtr SessionInterface = nullptr;
+  TSharedPtr<FOnlineSessionSettings> LastSessionSettings = nullptr;
 
-	FOnCreateSessionCompleteDelegate CreateSessionCompleteDelegate;
-	FDelegateHandle CreateSessionCompleteDelegateHandle;
-	
-	FOnFindSessionsCompleteDelegate FindSessionsCompleteDelegate;
-	FDelegateHandle FindSessionsCompleteDelegateHandle;
+  FOnCreateSessionCompleteDelegate CreateSessionCompleteDelegate;
+  FDelegateHandle CreateSessionCompleteDelegateHandle;
 
-	FOnJoinSessionCompleteDelegate JoinSessionCompleteDelegate;
-	FDelegateHandle JoinSessionCompleteDelegateHandle;
+  FOnFindSessionsCompleteDelegate FindSessionsCompleteDelegate;
+  FDelegateHandle FindSessionsCompleteDelegateHandle;
 
-	FOnDestroySessionCompleteDelegate DestroySessionCompleteDelegate;
-	FDelegateHandle DestroySessionCompleteDelegateHandle;
+  FOnJoinSessionCompleteDelegate JoinSessionCompleteDelegate;
+  FDelegateHandle JoinSessionCompleteDelegateHandle;
 
-	FOnStartSessionCompleteDelegate StartSessionCompleteDelegate;
-	FDelegateHandle StartSessionCompleteDelegateHandle;
+  FOnDestroySessionCompleteDelegate DestroySessionCompleteDelegate;
+  FDelegateHandle DestroySessionCompleteDelegateHandle;
+
+  FOnStartSessionCompleteDelegate StartSessionCompleteDelegate;
+  FDelegateHandle StartSessionCompleteDelegateHandle;
 };
