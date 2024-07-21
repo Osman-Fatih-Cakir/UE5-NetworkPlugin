@@ -23,7 +23,8 @@ DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
 AMyNetworkPluginCharacter::AMyNetworkPluginCharacter() :
   CreateSessionCompleteDelegate(FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnCreateSessionComplete)),
-  FindSessionsCompleteDelegate(FOnFindSessionsCompleteDelegate::CreateUObject(this, &ThisClass::OnFindSessionsComplete))
+  FindSessionsCompleteDelegate(FOnFindSessionsCompleteDelegate::CreateUObject(this, &ThisClass::OnFindSessionsComplete)),
+  JoinSessionCompleteDelegate(FOnJoinSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnJoinSessionComplete))
 {
   // Set size for collision capsule
   GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -170,6 +171,8 @@ void AMyNetworkPluginCharacter::CreateGameSession()
   sessionSettings->bUsesPresence = true;
   sessionSettings->bShouldAdvertise = true;
   sessionSettings->bUseLobbiesIfAvailable = true;
+  sessionSettings->Set(FName("MatchType"), FString("FreeForAll"), EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
+
   const ULocalPlayer* localPlayer = GetWorld()->GetFirstLocalPlayerFromController();
   OnlineSessionInterface->CreateSession(*localPlayer->GetPreferredUniqueNetId(), NAME_GameSession, *sessionSettings);
 }
@@ -195,6 +198,12 @@ void AMyNetworkPluginCharacter::OnCreateSessionComplete(FName SessionName, bool 
   if (bWasSuccessful)
   {
     Debug::Print("Created session: " + SessionName.ToString(), FColor::Green, 15.0f);
+
+    UWorld* world = GetWorld();
+    if (world)
+    {
+      world->ServerTravel(FString("/Game/ThirdPerson/Maps/Lobby?listen"));
+    }
   }
   else
   {
@@ -204,10 +213,43 @@ void AMyNetworkPluginCharacter::OnCreateSessionComplete(FName SessionName, bool 
 
 void AMyNetworkPluginCharacter::OnFindSessionsComplete(bool bWasSuccessful)
 {
-  for (auto result : SessionSearch->SearchResults)
+  if (!OnlineSessionInterface.IsValid()) return;
+
+  for (auto searchResult : SessionSearch->SearchResults)
   {
-    FString id = result.GetSessionIdStr();
-    FString user = result.Session.OwningUserName;
+    FString id = searchResult.GetSessionIdStr();
+    FString user = searchResult.Session.OwningUserName;
+    FString matchType;
+    searchResult.Session.SessionSettings.Get(FName("MatchType"), matchType);
+
     Debug::Print("ID: " + id + ", User: " + user, FColor::Cyan, 15.0f);
+
+    if (matchType == FString("FreeForAll"))
+    {
+      // Join the session
+      Debug::Print("Joining Match Type: " + matchType, FColor::Cyan, 15.0f);
+
+      OnlineSessionInterface->AddOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegate);
+
+      const ULocalPlayer* localPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+      OnlineSessionInterface->JoinSession(*localPlayer->GetPreferredUniqueNetId(), NAME_GameSession, searchResult);
+    }
+  }
+}
+
+void AMyNetworkPluginCharacter::OnJoinSessionComplete(FName sessionName, EOnJoinSessionCompleteResult::Type result)
+{
+  if (!OnlineSessionInterface.IsValid()) return;
+
+  FString address;
+  if (OnlineSessionInterface->GetResolvedConnectString(NAME_GameSession, address))
+  {
+    Debug::Print("Connect string: " + address, FColor::Yellow, 15.0f);
+
+    APlayerController* playerController = GetGameInstance()->GetFirstLocalPlayerController();
+    if (playerController)
+    {
+      playerController->ClientTravel(address, ETravelType::TRAVEL_Absolute);
+    }
   }
 }
