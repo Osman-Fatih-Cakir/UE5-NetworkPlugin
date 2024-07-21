@@ -49,6 +49,7 @@ public:
 private:
   IOnlineSessionPtr SessionInterface = nullptr;
   TSharedPtr<FOnlineSessionSettings> LastSessionSettings = nullptr;
+  TSharedPtr<FOnlineSessionSearch> LastSessionSearch = nullptr;
 
   FOnCreateSessionCompleteDelegate CreateSessionCompleteDelegate;
   FDelegateHandle CreateSessionCompleteDelegateHandle;

@@ -6,7 +6,7 @@
 #include "OnlineSessionSettings.h"
 #include "Online/OnlineSessionNames.h"
 
-UMultiplayerSessionsSubsystem::UMultiplayerSessionsSubsystem():
+UMultiplayerSessionsSubsystem::UMultiplayerSessionsSubsystem() :
   CreateSessionCompleteDelegate(FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnCreateSessionComplete)),
   FindSessionsCompleteDelegate(FOnFindSessionsCompleteDelegate::CreateUObject(this, &ThisClass::OnFindSessionsComplete)),
   JoinSessionCompleteDelegate(FOnJoinSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnJoinSessionComplete)),
@@ -39,6 +39,7 @@ void UMultiplayerSessionsSubsystem::CreateSession(int32 numPublicConnections, FS
   LastSessionSettings->bAllowJoinViaPresence = true;
   LastSessionSettings->bUsesPresence = true;
   LastSessionSettings->bShouldAdvertise = true;
+  LastSessionSettings->bUseLobbiesIfAvailable = true;
   LastSessionSettings->Set(FName("MatchType"), matchType, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 
   // create session
@@ -54,10 +55,40 @@ void UMultiplayerSessionsSubsystem::CreateSession(int32 numPublicConnections, FS
 
 void UMultiplayerSessionsSubsystem::FindSessions(int32 maxSearchResults)
 {
+  if (!SessionInterface.IsValid()) return;
+
+  FindSessionsCompleteDelegateHandle = SessionInterface->AddOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegate);
+  LastSessionSearch = MakeShareable(new FOnlineSessionSearch());
+  LastSessionSearch->MaxSearchResults = maxSearchResults;
+  LastSessionSearch->bIsLanQuery = IOnlineSubsystem::Get()->GetSubsystemName() == "NULL";
+  LastSessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
+
+  const ULocalPlayer* localPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+  if (!SessionInterface->FindSessions(*localPlayer->GetPreferredUniqueNetId(), LastSessionSearch.ToSharedRef()))
+  {
+    SessionInterface->ClearOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegateHandle);
+
+    MultiplayerOnFindSessionsComplete.Broadcast(TArray<FOnlineSessionSearchResult>(), false);
+  }
 }
 
 void UMultiplayerSessionsSubsystem::JoinSession(const FOnlineSessionSearchResult& sessionResult)
 {
+  if (!SessionInterface.IsValid())
+  {
+    MultiplayerOnJoinSessionComplete.Broadcast(EOnJoinSessionCompleteResult::UnknownError);
+    return;
+  }
+
+  JoinSessionCompleteDelegateHandle = SessionInterface->AddOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegate);
+
+  const ULocalPlayer* localPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+  if (!SessionInterface->JoinSession(*localPlayer->GetPreferredUniqueNetId(), NAME_GameSession, sessionResult))
+  {
+    SessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegateHandle);
+
+    MultiplayerOnJoinSessionComplete.Broadcast(EOnJoinSessionCompleteResult::UnknownError);
+  }
 }
 
 void UMultiplayerSessionsSubsystem::DestroySession()
@@ -74,15 +105,34 @@ void UMultiplayerSessionsSubsystem::OnCreateSessionComplete(FName sessionName, b
   {
     SessionInterface->ClearOnCreateSessionCompleteDelegate_Handle(CreateSessionCompleteDelegateHandle);
   }
+
   MultiplayerOnCreateSessionComplete.Broadcast(bWasSuccessful);
 }
 
 void UMultiplayerSessionsSubsystem::OnFindSessionsComplete(bool bWasSuccessful)
 {
+  if (SessionInterface)
+  {
+    SessionInterface->ClearOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegateHandle);
+  }
+
+  if (LastSessionSearch->SearchResults.Num() <= 0)
+  {
+    MultiplayerOnFindSessionsComplete.Broadcast(TArray<FOnlineSessionSearchResult>(), false);
+    return;
+  }
+
+  MultiplayerOnFindSessionsComplete.Broadcast(LastSessionSearch->SearchResults, bWasSuccessful);
 }
 
 void UMultiplayerSessionsSubsystem::OnJoinSessionComplete(FName sessionName, EOnJoinSessionCompleteResult::Type result)
 {
+  if (SessionInterface)
+  {
+    SessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegateHandle);
+  }
+
+  MultiplayerOnJoinSessionComplete.Broadcast(result);
 }
 
 void UMultiplayerSessionsSubsystem::OnDestroySessionComplete(FName sessionName, bool bWasSuccessful)
