@@ -20,7 +20,7 @@ class MULTIPLAYERSESSIONS_API UMenu : public UUserWidget
 
 public:
   UFUNCTION(BlueprintCallable)
-  void MenuSetup(int32 numOfPublicConnections = 4, FString matchType = FString(TEXT("FreeForAll")));
+  void MenuSetup(int32 numOfPublicConnections = 4, FString matchType = FString(TEXT("FreeForAll")), FString lobbyPath = FString(TEXT("/Game/ThirdPerson/Maps/Lobby")));
 
 protected:
   virtual bool Initialize() override;
@@ -54,4 +54,5 @@ private:
 
   int32 NumPublicConnections{ 4 };
   FString MatchType{ TEXT("FreeForAll") };
+  FString PathToLobby{ TEXT("") };
 };
