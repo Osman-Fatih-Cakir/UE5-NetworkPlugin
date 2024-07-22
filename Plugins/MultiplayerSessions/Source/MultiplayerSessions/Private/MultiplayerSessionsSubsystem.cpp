@@ -41,6 +41,7 @@ void UMultiplayerSessionsSubsystem::CreateSession(int32 numPublicConnections, FS
   LastSessionSettings->bShouldAdvertise = true;
   LastSessionSettings->bUseLobbiesIfAvailable = true;
   LastSessionSettings->Set(FName("MatchType"), matchType, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
+  LastSessionSettings->BuildUniqueId = 1;
 
   // create session
   CreateSessionCompleteDelegateHandle = SessionInterface->AddOnCreateSessionCompleteDelegate_Handle(CreateSessionCompleteDelegate);

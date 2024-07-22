@@ -66,7 +66,7 @@ AMyNetworkPluginCharacter::AMyNetworkPluginCharacter() :
   {
     OnlineSessionInterface = onlineSubsystem->GetSessionInterface();
 
-    Debug::Print("Found subsytem " + onlineSubsystem->GetSubsystemName().ToString(), FColor::Green, 15.0f);
+    //Debug::Print("Found subsytem " + onlineSubsystem->GetSubsystemName().ToString(), FColor::Green, 15.0f);
   }
 }
 
